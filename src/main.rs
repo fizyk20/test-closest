@@ -1,5 +1,6 @@
 extern crate rand;
 extern crate tiny_keccak;
+extern crate rayon;
 
 mod simulation;
 
@@ -10,8 +11,8 @@ fn main() {
         (10, 25, 6, 5000, 200),
         (12, 30, 7, 5000, 200),
         (15, 37, 8, 5000, 200),
-        (20, 50, 11, 5000, 200),
-        (31, 76, 16, 5000, 200),
+        (20, 50, 11, 10000, 400),
+        (31, 76, 16, 20000, 500),
     ];
 
     for (g, n, q, times, tries) in runs {

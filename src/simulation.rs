@@ -1,6 +1,7 @@
 use tiny_keccak;
 use std::collections::{HashSet, BTreeMap};
 use rand::{thread_rng, Rng};
+use rayon::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct U256(pub [u8; 32]);
@@ -61,26 +62,41 @@ impl Simulation {
     }
 
     pub fn run(&self, times: usize, tries_per_time: usize) -> SimResult {
-        let mut rng = thread_rng();
-        let mut successful = BTreeMap::new();
-        for _ in 0..times {
-            let (section, malicious) = self.generate_section(&mut rng);
+        let successful = (0..times)
+            .into_par_iter()
+            .filter_map(|_| {
+                let mut rng = thread_rng();
+                let (section, malicious) = self.generate_section(&mut rng);
 
-            for try in 0..tries_per_time {
-                let mut data = Vec::<u8>::with_capacity(1000);
-                for _ in 0..1000 {
-                    data.push(rng.gen());
+                for try in 0..tries_per_time {
+                    let mut data = Vec::<u8>::with_capacity(1000);
+                    for _ in 0..1000 {
+                        data.push(rng.gen());
+                    }
+
+                    let group = self.close_group(&section, sha3_256(&data));
+
+                    if malicious.is_subset(&group) {
+                        return Some(try + 1);
+                    }
                 }
-
-                let group = self.close_group(&section, sha3_256(&data));
-
-                if malicious.is_subset(&group) {
-                    let entry = successful.entry(try + 1).or_insert_with(|| 0);
+                None
+            })
+            .fold(|| BTreeMap::new(), |mut m: BTreeMap<_, _>, tries: usize| {
+                {
+                    let entry = m.entry(tries).or_insert_with(|| 0);
                     *entry = *entry + 1;
-                    break;
                 }
-            }
-        }
+                m
+            })
+            .reduce(|| BTreeMap::new(), |mut m: BTreeMap<_, _>,
+             m2: BTreeMap<_, _>| {
+                for (k, v) in m2 {
+                    let entry = m.entry(k).or_insert_with(|| 0);
+                    *entry = *entry + v;
+                }
+                m
+            });
         let mut sum = 0;
         let mut avg = 0;
         for (&tries, &num) in &successful {

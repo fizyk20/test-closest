@@ -6,3 +6,4 @@ authors = ["Bartłomiej Kamiński <fizyk20@gmail.com>"]
 [dependencies]
 rand = "*"
 tiny-keccak = "*"
+rayon = "*"
