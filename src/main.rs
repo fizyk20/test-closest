@@ -16,7 +16,7 @@ fn main() {
     ];
 
     for (g, n, q, times, tries) in runs {
-        let sim = Simulation::new(g, n, q);
+        let sim = SimStruct::new(g, n, q);
         let result = sim.run(times, tries);
 
         println!("Group size: {}, section size: {}, quorum: {}", g, n, q);

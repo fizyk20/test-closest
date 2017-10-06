@@ -6,11 +6,11 @@ use rayon::prelude::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct U256(pub [u8; 32]);
 
-pub fn sha3_256(data: &[u8]) -> U256 {
+fn sha3_256(data: &[u8]) -> U256 {
     U256(tiny_keccak::sha3_256(data))
 }
 
-pub fn distance(x: &U256, y: &U256) -> U256 {
+fn distance(x: &U256, y: &U256) -> U256 {
     let mut result = U256([0; 32]);
     for i in 0..32 {
         result.0[i] = x.0[i] ^ y.0[i];
@@ -32,51 +32,43 @@ struct RunResult {
     pub hash_num_tries: Option<usize>,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Simulation {
-    group_size: usize,
-    network_size: usize,
-    quorum_size: usize,
+pub trait SectionData {
+    fn section(&self) -> &HashSet<U256>;
+    fn group_size(&self) -> usize;
+    fn has_malicious_quorum(&self, nodes: &HashSet<U256>) -> bool;
+
+    fn has_malicious_prefix_close_group(&self) -> bool {
+        let group = self.close_group(U256([0; 32]));
+        self.has_malicious_quorum(&group)
+    }
+
+    fn has_malicious_close_group(&self, point: U256) -> bool {
+        let group = self.close_group(point);
+        self.has_malicious_quorum(&group)
+    }
+
+    fn close_group(&self, point: U256) -> HashSet<U256> {
+        let mut sorted: Vec<_> = self.section().into_iter().collect();
+        sorted.sort_by_key(|x| distance(x, &point));
+        sorted
+            .into_iter()
+            .take(self.group_size())
+            .cloned()
+            .collect()
+    }
 }
 
-impl Simulation {
-    pub fn new(group_size: usize, network_size: usize, quorum_size: usize) -> Simulation {
-        Simulation {
-            group_size,
-            network_size,
-            quorum_size,
-        }
-    }
+pub trait Simulation<T: SectionData>: Sync {
+    fn generate_section<R: Rng>(&self, rng: &mut R) -> T;
 
-    pub fn close_group(&self, section: &[U256], point: U256) -> HashSet<U256> {
-        let mut sorted: Vec<_> = section.into();
-        sorted.sort_by_key(|x| distance(x, &point));
-        sorted.into_iter().take(self.group_size).collect()
-    }
-
-    pub fn generate_section<R: Rng>(&self, rng: &mut R) -> (Vec<U256>, HashSet<U256>) {
-        let mut section = vec![];
-        for _ in 0..self.network_size {
-            section.push(U256(rng.gen()));
-        }
-
-        let mut malicious = HashSet::new();
-        while malicious.len() < self.quorum_size {
-            let index = rng.gen_range(0, section.len());
-            malicious.insert(section[index]);
-        }
-        (section, malicious)
-    }
-
-    pub fn run(&self, times: usize, tries_per_time: usize) -> SimResult {
+    fn run(&self, times: usize, tries_per_time: usize) -> SimResult {
         let results: Vec<_> = (0..times)
             .into_par_iter()
             .map(|_| {
                 let mut rng = thread_rng();
-                let (section, malicious) = self.generate_section(&mut rng);
+                let section_data = self.generate_section(&mut rng);
 
-                let is_closest_to_prefix =
-                    malicious.is_subset(&self.close_group(&section, U256([0; 32])));
+                let is_closest_to_prefix = section_data.has_malicious_prefix_close_group();
 
                 let mut hash_num_tries = None;
                 for try in 0..tries_per_time {
@@ -85,9 +77,7 @@ impl Simulation {
                         data.push(rng.gen());
                     }
 
-                    let group = self.close_group(&section, sha3_256(&data));
-
-                    if malicious.is_subset(&group) {
+                    if section_data.has_malicious_close_group(sha3_256(&data)) {
                         hash_num_tries = Some(try + 1);
                         break;
                     }
