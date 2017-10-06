@@ -48,12 +48,8 @@ impl Simulation {
 
     pub fn generate_section<R: Rng>(&self, rng: &mut R) -> (Vec<U256>, HashSet<U256>) {
         let mut section = vec![];
-        let mut name = [0; 32];
-        name[0] = 5;
-        // only works for S = 25
         for _ in 0..self.network_size {
-            section.push(U256(name));
-            name[0] += 10;
+            section.push(U256(rng.gen()));
         }
 
         let mut malicious = HashSet::new();
