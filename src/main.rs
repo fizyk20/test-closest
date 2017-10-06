@@ -17,7 +17,7 @@ fn main() {
 
     for (g, n, q, times, tries) in runs {
         let sim = SimStruct::new(g, n, q);
-        let result = Simulation::<BasicSectionData>::run(&sim, times, tries);
+        let result = Simulation::<NodeAgeingSectionData>::run(&sim, times, tries);
 
         println!("Group size: {}, section size: {}, quorum: {}", g, n, q);
         println!("  Success rate:             {}%", result.success_rate);

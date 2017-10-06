@@ -52,10 +52,16 @@ impl SectionData for NodeAgeingSectionData {
     }
 
     fn has_malicious_quorum(&self, group: &HashSet<U256>) -> bool {
-        let sum_ages: u16 = self.section.values().map(|x| *x as u16).sum();
+        let sum_ages: u16 = self.section
+            .iter()
+            .filter(|&(name, _)| group.contains(name))
+            .map(|(_, val)| *val as u16)
+            .sum();
         let sum_ages_malicious: u16 = self.section
             .iter()
-            .filter(|&(name, _)| self.malicious.contains(name))
+            .filter(|&(name, _)| {
+                group.contains(name) && self.malicious.contains(name)
+            })
             .map(|(_, val)| *val as u16)
             .sum();
         self.malicious.is_subset(group) && sum_ages_malicious * 2 > sum_ages
