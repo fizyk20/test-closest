@@ -33,7 +33,7 @@ struct RunResult {
 }
 
 pub trait SectionData {
-    fn section(&self) -> &HashSet<U256>;
+    fn section(&self) -> HashSet<U256>;
     fn group_size(&self) -> usize;
     fn has_malicious_quorum(&self, nodes: &HashSet<U256>) -> bool;
 
@@ -50,11 +50,7 @@ pub trait SectionData {
     fn close_group(&self, point: U256) -> HashSet<U256> {
         let mut sorted: Vec<_> = self.section().into_iter().collect();
         sorted.sort_by_key(|x| distance(x, &point));
-        sorted
-            .into_iter()
-            .take(self.group_size())
-            .cloned()
-            .collect()
+        sorted.into_iter().take(self.group_size()).collect()
     }
 }
 

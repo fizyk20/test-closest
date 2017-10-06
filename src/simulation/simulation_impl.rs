@@ -1,5 +1,6 @@
 use super::*;
 use super::basic_section_data::BasicSectionData;
+use super::node_ageing_section_data::NodeAgeingSectionData;
 use rand::Rng;
 
 #[derive(Clone, Copy, Debug)]
@@ -22,5 +23,11 @@ impl SimStruct {
 impl Simulation<BasicSectionData> for SimStruct {
     fn generate_section<R: Rng>(&self, rng: &mut R) -> BasicSectionData {
         BasicSectionData::new(rng, self.group_size, self.network_size, self.quorum_size)
+    }
+}
+
+impl Simulation<NodeAgeingSectionData> for SimStruct {
+    fn generate_section<R: Rng>(&self, rng: &mut R) -> NodeAgeingSectionData {
+        NodeAgeingSectionData::new(rng, self.group_size, self.network_size, self.quorum_size)
     }
 }

@@ -40,8 +40,8 @@ impl SectionData for BasicSectionData {
         self.group_size
     }
 
-    fn section(&self) -> &HashSet<U256> {
-        &self.section
+    fn section(&self) -> HashSet<U256> {
+        self.section.clone()
     }
 
     fn has_malicious_quorum(&self, group: &HashSet<U256>) -> bool {
