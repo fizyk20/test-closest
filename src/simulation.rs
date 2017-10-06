@@ -21,8 +21,15 @@ pub fn distance(x: &U256, y: &U256) -> U256 {
 #[derive(Clone, Debug)]
 pub struct SimResult {
     pub success_rate: f64,
+    pub closest_success_rate: f64,
     pub avg_tries: f64,
     pub tries_map: BTreeMap<usize, usize>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct RunResult {
+    pub is_closest_to_prefix: bool,
+    pub hash_num_tries: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -62,12 +69,16 @@ impl Simulation {
     }
 
     pub fn run(&self, times: usize, tries_per_time: usize) -> SimResult {
-        let successful = (0..times)
+        let results: Vec<_> = (0..times)
             .into_par_iter()
-            .filter_map(|_| {
+            .map(|_| {
                 let mut rng = thread_rng();
                 let (section, malicious) = self.generate_section(&mut rng);
 
+                let is_closest_to_prefix =
+                    malicious.is_subset(&self.close_group(&section, U256([0; 32])));
+
+                let mut hash_num_tries = None;
                 for try in 0..tries_per_time {
                     let mut data = Vec::<u8>::with_capacity(1000);
                     for _ in 0..1000 {
@@ -77,26 +88,23 @@ impl Simulation {
                     let group = self.close_group(&section, sha3_256(&data));
 
                     if malicious.is_subset(&group) {
-                        return Some(try + 1);
+                        hash_num_tries = Some(try + 1);
+                        break;
                     }
                 }
-                None
-            })
-            .fold(|| BTreeMap::new(), |mut m: BTreeMap<_, _>, tries: usize| {
-                {
-                    let entry = m.entry(tries).or_insert_with(|| 0);
-                    *entry = *entry + 1;
+
+                RunResult {
+                    is_closest_to_prefix,
+                    hash_num_tries,
                 }
-                m
             })
-            .reduce(|| BTreeMap::new(), |mut m: BTreeMap<_, _>,
-             m2: BTreeMap<_, _>| {
-                for (k, v) in m2 {
-                    let entry = m.entry(k).or_insert_with(|| 0);
-                    *entry = *entry + v;
-                }
-                m
-            });
+            .collect();
+        let mut successful = BTreeMap::new();
+        for res in results.iter().filter_map(|&x| x.hash_num_tries) {
+            let entry = successful.entry(res).or_insert_with(|| 0);
+            *entry = *entry + 1;
+        }
+        let successful_prefix = results.iter().filter(|&x| x.is_closest_to_prefix).count();
         let mut sum = 0;
         let mut avg = 0;
         for (&tries, &num) in &successful {
@@ -106,6 +114,7 @@ impl Simulation {
 
         SimResult {
             success_rate: sum as f64 / times as f64 * 100.0,
+            closest_success_rate: successful_prefix as f64 / times as f64 * 100.0,
             avg_tries: if sum > 0 {
                 avg as f64 / sum as f64
             } else {
