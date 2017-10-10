@@ -1,6 +1,5 @@
 use super::*;
 use rand::Rng;
-use rand::distributions::{Exp, IndependentSample};
 use std::collections::{HashSet, HashMap};
 use std::cmp::Ordering;
 
@@ -18,26 +17,13 @@ impl NodeAgeingIndexWeights {
         size: usize,
         n_malicious: usize,
     ) -> NodeAgeingIndexWeights {
-        let mut section = vec![];
-        for _ in 0..size {
-            section.push(U256(rng.gen()));
-        }
-
-        let mut malicious = HashSet::new();
-        while malicious.len() < n_malicious {
-            let index = rng.gen_range(0, section.len());
-            malicious.insert(section[index]);
-        }
-
-        let mut section_map = HashMap::new();
-        let exp = Exp::new(1.0);
-        for n in section {
-            section_map.insert(n, exp.ind_sample(rng) as u8);
-        }
+        let section = gen_names(rng, size);
+        let malicious = gen_malicious(rng, &section, n_malicious);
+        let section = gen_ages(rng, &section);
 
         NodeAgeingIndexWeights {
             group_size,
-            section: section_map,
+            section,
             malicious,
         }
     }
@@ -68,8 +54,8 @@ impl SectionData for NodeAgeingIndexWeights {
                 age_order
             }
         });
-        let three_quarters = self.group_size * 3 / 4;
-        let weight_limit = three_quarters * (three_quarters - 1) / 2;
+        let three_quarters = (self.group_size * 3) / 4;
+        let weight_limit = (three_quarters * (three_quarters - 1)) / 2;
         let sum_indices_malicious: u16 = sorted_group
             .iter()
             .map(|x| *x.0)
@@ -77,6 +63,6 @@ impl SectionData for NodeAgeingIndexWeights {
             .filter(|&(_, name)| self.malicious.contains(&name))
             .map(|(index, _)| index as u16)
             .sum();
-        self.malicious.is_subset(group) && sum_indices_malicious >= weight_limit as u16
+        self.malicious.is_subset(group) && sum_indices_malicious > weight_limit as u16
     }
 }

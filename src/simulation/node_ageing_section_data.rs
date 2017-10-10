@@ -1,6 +1,5 @@
 use super::*;
 use rand::Rng;
-use rand::distributions::{Exp, IndependentSample};
 use std::collections::{HashSet, HashMap};
 
 #[derive(Clone, Debug)]
@@ -17,26 +16,13 @@ impl NodeAgeingSectionData {
         size: usize,
         n_malicious: usize,
     ) -> NodeAgeingSectionData {
-        let mut section = vec![];
-        for _ in 0..size {
-            section.push(U256(rng.gen()));
-        }
-
-        let mut malicious = HashSet::new();
-        while malicious.len() < n_malicious {
-            let index = rng.gen_range(0, section.len());
-            malicious.insert(section[index]);
-        }
-
-        let mut section_map = HashMap::new();
-        let exp = Exp::new(1.0);
-        for n in section {
-            section_map.insert(n, exp.ind_sample(rng) as u8 + 1);
-        }
+        let section = gen_names(rng, size);
+        let malicious = gen_malicious(rng, &section, n_malicious);
+        let section = gen_ages(rng, &section);
 
         NodeAgeingSectionData {
             group_size,
-            section: section_map,
+            section,
             malicious,
         }
     }

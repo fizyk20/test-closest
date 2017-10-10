@@ -16,20 +16,12 @@ impl BasicSectionData {
         size: usize,
         n_malicious: usize,
     ) -> BasicSectionData {
-        let mut section = vec![];
-        for _ in 0..size {
-            section.push(U256(rng.gen()));
-        }
-
-        let mut malicious = HashSet::new();
-        while malicious.len() < n_malicious {
-            let index = rng.gen_range(0, section.len());
-            malicious.insert(section[index]);
-        }
+        let section = gen_names(rng, size);
+        let malicious = gen_malicious(rng, &section, n_malicious);
 
         BasicSectionData {
             group_size,
-            section: section.into_iter().collect(),
+            section,
             malicious,
         }
     }
