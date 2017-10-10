@@ -1,6 +1,6 @@
 use tiny_keccak;
 use std::collections::{HashSet, BTreeMap};
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, ThreadRng};
 use rayon::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -54,15 +54,37 @@ pub trait SectionData {
     }
 }
 
-pub trait Simulation<T: SectionData>: Sync {
-    fn generate_section<R: Rng>(&self, rng: &mut R) -> T;
+#[derive(Clone, Copy, Debug)]
+pub struct Simulation {
+    group_size: usize,
+    network_size: usize,
+    quorum_size: usize,
+}
 
-    fn run(&self, times: usize, tries_per_time: usize) -> SimResult {
+impl Simulation {
+    pub fn new(group_size: usize, network_size: usize, quorum_size: usize) -> Simulation {
+        Simulation {
+            group_size,
+            network_size,
+            quorum_size,
+        }
+    }
+
+    pub fn run<F, S>(&self, times: usize, tries_per_time: usize, generate_section: F) -> SimResult
+    where
+        F: Fn(&mut ThreadRng, usize, usize, usize) -> S + Sync,
+        S: SectionData,
+    {
         let results: Vec<_> = (0..times)
             .into_par_iter()
             .map(|_| {
                 let mut rng = thread_rng();
-                let section_data = self.generate_section(&mut rng);
+                let section_data = generate_section(
+                    &mut rng,
+                    self.group_size,
+                    self.network_size,
+                    self.quorum_size,
+                );
 
                 let is_closest_to_prefix = section_data.has_malicious_prefix_close_group();
 
