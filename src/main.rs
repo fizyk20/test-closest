@@ -49,7 +49,8 @@ fn main() {
         };
 
         println!("Group size: {}, section size: {}, quorum: {}", g, n, q);
-        println!("  Success rate:             {}%", result.success_rate);
+        println!("  Forge success rate:       {}%", result.success_rate);
+        println!("  Stall success rate:       {}%", result.stall_rate);
         println!(
             "  Close group success rate: {}%",
             result.closest_success_rate
