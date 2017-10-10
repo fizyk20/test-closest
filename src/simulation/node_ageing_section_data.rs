@@ -31,7 +31,7 @@ impl NodeAgeingSectionData {
         let mut section_map = HashMap::new();
         let exp = Exp::new(1.0);
         for n in section {
-            section_map.insert(n, exp.ind_sample(rng) as u8);
+            section_map.insert(n, exp.ind_sample(rng) as u8 + 1);
         }
 
         NodeAgeingSectionData {
