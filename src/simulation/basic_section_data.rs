@@ -36,7 +36,15 @@ impl SectionData for BasicSectionData {
         self.section.clone()
     }
 
+    fn is_malicious(&self, name: &U256) -> bool {
+        self.malicious.contains(name)
+    }
+
     fn has_malicious_quorum(&self, group: &HashSet<U256>) -> bool {
-        self.malicious.is_subset(group)
+        self.count_malicious(group) > group.len() / 2
+    }
+
+    fn can_stall(&self, group: &HashSet<U256>) -> bool {
+        self.count_malicious(group) > (group.len() - 1) / 2
     }
 }

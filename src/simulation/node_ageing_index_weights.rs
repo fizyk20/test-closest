@@ -27,18 +27,8 @@ impl NodeAgeingIndexWeights {
             malicious,
         }
     }
-}
 
-impl SectionData for NodeAgeingIndexWeights {
-    fn group_size(&self) -> usize {
-        self.group_size
-    }
-
-    fn section(&self) -> HashSet<U256> {
-        self.section.keys().cloned().collect()
-    }
-
-    fn has_malicious_quorum(&self, group: &HashSet<U256>) -> bool {
+    fn sorted_group(&self, group: &HashSet<U256>) -> Vec<U256> {
         let mut sorted_group: Vec<_> = group
             .into_iter()
             .filter_map(|name| {
@@ -54,15 +44,45 @@ impl SectionData for NodeAgeingIndexWeights {
                 age_order
             }
         });
-        let three_quarters = (self.group_size * 3) / 4;
-        let weight_limit = (three_quarters * (three_quarters - 1)) / 2;
-        let sum_indices_malicious: u16 = sorted_group
-            .iter()
-            .map(|x| *x.0)
+        sorted_group.into_iter().map(|(name, _)| *name).collect()
+    }
+
+    fn sum_indices_malicious(&self, group: &HashSet<U256>) -> u16 {
+        self.sorted_group(group)
+            .into_iter()
             .enumerate()
             .filter(|&(_, name)| self.malicious.contains(&name))
             .map(|(index, _)| index as u16)
-            .sum();
-        self.malicious.is_subset(group) && sum_indices_malicious > weight_limit as u16
+            .sum()
+    }
+
+    fn weight_limit(&self) -> u16 {
+        let three_quarters = (self.group_size * 3) / 4;
+        (three_quarters * (three_quarters - 1) / 2) as u16
+    }
+}
+
+impl SectionData for NodeAgeingIndexWeights {
+    fn group_size(&self) -> usize {
+        self.group_size
+    }
+
+    fn section(&self) -> HashSet<U256> {
+        self.section.keys().cloned().collect()
+    }
+
+    fn is_malicious(&self, name: &U256) -> bool {
+        self.malicious.contains(name)
+    }
+
+    fn has_malicious_quorum(&self, group: &HashSet<U256>) -> bool {
+        self.count_malicious(group) > group.len() / 2 &&
+            self.sum_indices_malicious(group) > self.weight_limit()
+    }
+
+    fn can_stall(&self, group: &HashSet<U256>) -> bool {
+        let total_indices = group.len() * (group.len() - 1) / 2;
+        self.count_malicious(group) > (group.len() - 1) / 2 ||
+            self.sum_indices_malicious(group) >= total_indices as u16 - self.weight_limit()
     }
 }

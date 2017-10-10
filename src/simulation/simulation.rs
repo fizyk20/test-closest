@@ -34,8 +34,25 @@ struct RunResult {
 
 pub trait SectionData {
     fn section(&self) -> HashSet<U256>;
+    fn is_malicious(&self, name: &U256) -> bool;
     fn group_size(&self) -> usize;
     fn has_malicious_quorum(&self, nodes: &HashSet<U256>) -> bool;
+    fn can_stall(&self, nodes: &HashSet<U256>) -> bool;
+
+    fn malicious_nodes(&self, group: &HashSet<U256>) -> HashSet<U256> {
+        group
+            .into_iter()
+            .filter(|&x| self.is_malicious(x))
+            .cloned()
+            .collect()
+    }
+
+    fn count_malicious(&self, group: &HashSet<U256>) -> usize {
+        group
+            .into_iter()
+            .filter(|&name| self.is_malicious(name))
+            .count()
+    }
 
     fn has_malicious_prefix_close_group(&self) -> bool {
         let group = self.close_group(U256([0; 32]));

@@ -26,6 +26,22 @@ impl NodeAgeingSectionData {
             malicious,
         }
     }
+
+    fn total_age(&self, group: &HashSet<U256>) -> u16 {
+        group
+            .iter()
+            .filter_map(|name| self.section.get(name))
+            .map(|&x| x as u16)
+            .sum()
+    }
+
+    fn malicious_age(&self, group: &HashSet<U256>) -> u16 {
+        self.malicious_nodes(group)
+            .into_iter()
+            .filter_map(|name| self.section.get(&name))
+            .map(|&x| x as u16)
+            .sum()
+    }
 }
 
 impl SectionData for NodeAgeingSectionData {
@@ -37,18 +53,17 @@ impl SectionData for NodeAgeingSectionData {
         self.section.keys().cloned().collect()
     }
 
+    fn is_malicious(&self, name: &U256) -> bool {
+        self.malicious.contains(name)
+    }
+
     fn has_malicious_quorum(&self, group: &HashSet<U256>) -> bool {
-        let sum_ages: u16 = group
-            .iter()
-            .filter_map(|name| self.section.get(name))
-            .map(|&x| x as u16)
-            .sum();
-        let sum_ages_malicious: u16 = group
-            .iter()
-            .filter(|&name| self.malicious.contains(name))
-            .filter_map(|name| self.section.get(name))
-            .map(|&x| x as u16)
-            .sum();
-        self.malicious.is_subset(group) && sum_ages_malicious * 2 > sum_ages
+        self.count_malicious(group) > group.len() / 2 &&
+            self.malicious_age(group) * 2 > self.total_age(group)
+    }
+
+    fn can_stall(&self, group: &HashSet<U256>) -> bool {
+        self.count_malicious(group) > (group.len() - 1) / 2 ||
+            self.malicious_age(group) * 2 >= self.total_age(group)
     }
 }
