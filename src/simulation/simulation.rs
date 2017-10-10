@@ -10,7 +10,7 @@ fn sha3_256(data: &[u8]) -> U256 {
     U256(tiny_keccak::sha3_256(data))
 }
 
-fn distance(x: &U256, y: &U256) -> U256 {
+pub fn distance(x: &U256, y: &U256) -> U256 {
     let mut result = U256([0; 32]);
     for i in 0..32 {
         result.0[i] = x.0[i] ^ y.0[i];
